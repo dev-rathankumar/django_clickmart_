@@ -1,6 +1,6 @@
 
-# 🚀 Django Production Deployment
-### Docker + PostgreSQL + GitHub Actions (CI/CD) + Linode + Nginx + Custom Domain + SSL
+# 🚀 Django Production Deployment (Step-by-Step)
+### Docker + PostgreSQL + GitHub Actions (CI/CD) + Linode + Nginx + Gunicorn + Custom Domain + SSL
 
 This repository demonstrates how to deploy a **Django application** from local development to **production** using:
 - Django  
@@ -9,6 +9,7 @@ This repository demonstrates how to deploy a **Django application** from local d
 - GitHub Actions (CI/CD)  
 - Linode VPS  
 - Nginx
+- Gunicorn
 - Custom Domain
 - SSL (Let’s Encrypt)
 
