@@ -31,8 +31,8 @@ Install the following on your system:
 
 ## 📦 Step 1 — Clone the Project
 ```sh
-git clone https://github.com/dev-rathankumar/clickmart_v1_demo .
-cd clickmart_drf
+git clone https://github.com/dev-rathankumar/django_clickmart_
+cd django_clickmart_
 ```
 
 ## Step 2 - Remove Git history
@@ -41,7 +41,7 @@ rm -rf .git
 ```
 This wipes your commit history & remote. Now it is just files in your local computer, not a repo.
 
-## Create their own GitHub repo
+## Create your own GitHub repository
 Go to GitHub → Click New Repository → Name: django-clickmart
 
 ## Re-initialize Git
@@ -170,8 +170,7 @@ FROM nginx:alpine
 # Copy build output to Nginx html directory
 COPY --from=build /app/dist /usr/share/nginx/html
 
-# Vite preview server - 4173 port: Used to preview the production build locally
-EXPOSE 4173
+EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]
 ```
 
@@ -180,10 +179,8 @@ CMD ["nginx", "-g", "daemon off;"]
 services:
   db:
     image: postgres:16-alpine
-    environment:
-      POSTGRES_DB: clickmart_docker_db
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: qWerty@123
+    env_file:
+      - .env.production
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
@@ -207,7 +204,7 @@ services:
     build:
       context: ./frontend
       args:
-        VITE_SERVER_BASE_URL: "http://127.0.0.1:8000/api/v1"
+        VITE_SERVER_BASE_URL: "http://backend:8000/api/v1"
     ports:
       - "5173:80"
     depends_on:
@@ -238,8 +235,8 @@ DB_HOST=db
 DB_PORT=5432
 
 
-EMAIL_HOST_USER=developer.rathan@gmail.com
-EMAIL_HOST_PASSWORD=xhqoscrgtshtqkou
+EMAIL_HOST_USER=<YOUR-EMAIL-ADDRESS>
+EMAIL_HOST_PASSWORD=<YOUR-PASSWORD> # app password if you're using Gmail account
 ```
 
 Run this command to Dockerize your project:
