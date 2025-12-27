@@ -255,3 +255,254 @@ You can try creating superuser inside Docker container.
 ```sh
 docker compose exec backend python manage.py createsuperuser
 ```
+
+## Create Linode Server & SSH Key
+
+👉 [Create a Linode account](https://rathank.com/linode/)
+
+##### Create SSH Key
+On your local machine:
+```bash
+ls ~/.ssh
+ssh-keygen -t ed25519 -C "clickmart-linode"
+```
+
+Copy the public key and add it to Linode UI:
+```ssh
+cat ~/.ssh/linode.pub
+```
+
+## SSH into Linode (Passwordless)
+```sh
+ssh root@<LINODE_IP>
+```
+
+Update the server:
+```sh
+apt update && apt upgrade -y
+```
+
+## Install Required Software
+Install Docker:
+```sh
+curl -fsSL https://get.docker.com | sh
+docker --version
+```
+
+Install Docker Compose:
+```sh
+apt install docker-compose-plugin -y
+```
+
+Install Git:
+```sh
+apt install git -y
+git --version
+```
+
+✅ Docker, Docker Compose, and Git installed successfully.
+
+## Clone Project into /opt
+Reconnect to SSH (if disconnected):
+```sh
+cd /opt
+mkdir clickmart
+cd clickmart
+git clone https://github.com/your-repo.git .
+```
+Repo is now cloned inside /opt/clickmart
+
+## Update Frontend Environment Variable
+In docker-compose.yml:
+```sh
+VITE_SERVER_BASE_URL="http://<LINODE_IP>:8000/api/v1"
+```
+
+Push changes:
+```sh
+git push origin main
+```
+
+## Create Environment Files on Linode
+```sh
+nano backend-drf/.env.production
+nano backend-drf/.env.docker
+```
+Add required environment variables inside it.
+
+## Open Firewall Ports on Linode
+⚠️ If ports are not opened, the app will run but won’t be accessible.
+
+Required Ports (Initial Setup)
+```sh
+SSH: 22
+Django Backend: 8000
+React Frontend: 5173
+```
+
+```sh
+Inbound Rules:
+
+Allow TCP 22
+Allow TCP 8000
+Allow TCP 5173
+```
+
+## Build & Run Docker Containers
+```sh
+docker compose up --build -d
+docker compose ps
+```
+
+Test in browser:
+
+Backend: http://<LINODE_IP>:8000/
+
+Frontend: http://<LINODE_IP>:5173/
+
+## Fix Django ALLOWED_HOSTS
+In local settings.py:
+```sh
+ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "").split(",")
+
+CORS_ALLOWED_ORIGINS = [
+    'http://localhost:5173',
+    'http://<LINODE_IP>:5173'
+]
+```
+
+In local .env.docker:
+```sh
+ALLOWED_HOSTS=<LINODE_IP>,localhost,127.0.0.1
+```
+
+In linode .env.docker:
+```sh
+ALLOWED_HOSTS=<LINODE_IP>,localhost,127.0.0.1
+```
+
+In docker-compose.yml:
+```sh
+VITE_SERVER_BASE_URL: "http://<LINODE_IP>/api/v1"
+```
+
+Push to GitHub:
+```sh
+git add .
+git commit -m "Allowed host & environments added"
+git push origin main
+```
+This will push the changes to GitHub.
+
+### 🎯 Goal - Whenever I push code to GitHub, my Linode server should automatically update.
+
+But first...
+
+### Manually pull the code from GitHub to Linode.
+While logged-in to Linode:
+```sh
+git pull origin main
+```
+
+Rebuild containers:
+```sh
+docker compose down -v
+docker compose up --build -d
+```
+
+## Rule Before Automation
+❗Never automate something you haven’t done manually.
+
+
+## Setup CI/CD (GitHub Actions)
+In local project:
+
+Create a new file:  
+
+```sh
+.github/workflows/automate.yml
+```
+```sh
+name: Auto Deploy to Linode
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.LINODE_HOST }}
+          username: ${{ secrets.LINODE_USER }}
+          key: ${{ secrets.LINODE_SSH_KEY }}
+          script: |
+            cd /opt/clickmart
+            git pull origin main
+            docker compose up --build -d
+```
+
+Add GitHub Secrets:
+GitHub → Your Repository → Settings → Secrets and variables → Actions → New repository secret
+
+```
+LINODE_HOST → <LINODE_IP>
+LINODE_USER → root
+LINODE_SSH_KEY → Private SSH Key
+```
+
+## Push automation file:
+```sh
+git add .
+git commit -m "CI/CD Setup"
+git push origin main
+```
+
+Check GitHub Actions tab.
+
+Make a small frontend change and confirm auto-deploy.
+
+✅ Auto deploy successful.
+
+## Nginx Config
+From local project, create file:
+```sh
+nginx/default.conf
+```
+
+### Docker Compose Changes
+- Add nginx service
+- Remove ports from backend & frontend
+- Update frontend API URL: ``` VITE_SERVER_BASE_URL="/api/v1" ```
+
+Push changes:
+```sh
+git add .
+git commit -m "Nginx Setup"
+git push origin main
+```
+
+## Update Firewall (Production)
+Keep:
+- ```22``` (SSH)
+- ```80``` (HTTP)
+
+Remove:
+- ```8000``` (Backend)
+- ```5173``` (Frontend)
+
+## Final Test
+http://<LINODE_IP>/
+
+If you get error: Add ```backend``` to allowed host in linode server manually.
+
+Restart docker:
+```sh
+docker compose down -v
+docker compose up --build -d
+```
