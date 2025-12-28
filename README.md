@@ -603,19 +603,91 @@ docker compose restart backend
 http://example.com
 
 ## Install SSL (Let’s Encrypt)
-⚠️ Run on Linode host, not inside Docker.
 
+In the server root directory, create folders:
+```
+mkdir -p certbot/www
+mkdir -p certbot/conf
+```
+### Update docker-compose.yml (Nginx service)
+Edit docker-compose.yml locally (nginx service):
+```
+volumes:
+  - ./certbot/www:/var/www/certbot
+  - ./certbot/conf:/etc/letsencrypt
+```
+Push to main branch.
+
+### Update nginx/default.conf
+Edit `nginx/default.conf`
+
+Add this block:
+```
+location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+```
+
+Restart Nginx container:
+```
+docker compose restart nginx
+```
+Make sure the site with HTTP still works at this point:
+
+### Install Certbot
 ```
 apt update
-apt install certbot python3-certbot-nginx -y
+apt install certbot -y
 ```
-#### Get SSL certificate
+
+### Get SSL Certificate (WEBROOT METHOD)
 ```
-certbot --nginx -d example.com -d www.example.com
+certbot certonly \
+  --webroot \
+  -w /opt/clickmart/certbot/www \
+  -d djangoclickmart.store \
+  -d www.djangoclickmart.store
 ```
-- Email → yes - Generate SSL certs
-- Agree → yes - Modify Nginx config
-- Redirect HTTP → yes - Enable HTTPS
+
+### Enable HTTPS in Nginx
+Edit `nginx/default.conf` again:
+
+Replace with FINAL CONFIG:
+```
+server {
+    listen 80;
+    server_name djangoclickmart.store www.djangoclickmart.store;
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    server_name djangoclickmart.store www.djangoclickmart.store;
+
+    ssl_certificate /etc/letsencrypt/live/djangoclickmart.store/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/djangoclickmart.store/privkey.pem;
+
+    location / {
+        proxy_pass http://frontend:80;
+    }
+
+    location /api/ {
+        proxy_pass http://backend:8000;
+    }
+
+    location /admin/ {
+        proxy_pass http://backend:8000;
+    }
+
+    location /static/ {
+        alias /static/;
+    }
+}
+
+```
+
+
+
 
 #### Restart Nginx
 docker compose restart nginx
