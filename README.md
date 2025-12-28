@@ -506,3 +506,121 @@ Restart docker:
 docker compose down -v
 docker compose up --build -d
 ```
+
+## Gunicorn Setup (Production WSGI Server)
+
+### 1. Add Gunicorn Dependency
+Add `gunicorn` inside `requirements.txt`:
+
+
+#### Update Backend Dockerfile
+
+No special change is required other than ensuring requirements.txt is installed.
+Gunicorn will be installed automatically via dependencies.
+
+#### Update docker-compose.yml
+Replace the Django run command with Gunicorn:
+```
+command: >
+  gunicorn clickmart_main.wsgi:application
+  --bind 0.0.0.0:8000
+  --workers 3
+```
+- clickmart_main.wsgi:application → Django entry point
+- --bind 0.0.0.0:8000 → Listen on all interfaces
+- --workers 3 → Run 3 Python worker processes
+
+```
+git add .
+git commit -m "Deploy Gunicorn"
+git push origin main
+```
+
+#### Important Note
+✅ We did not change the application code.
+
+✅ We only changed how Python code is executed in production.
+
+### Verify Gunicorn Is Running
+SSH into the Linode server:
+```
+ssh root@<LINODE_IP>
+cd /opt/clickmart
+docker compose logs backend
+```
+
+## Purchase a Domain
+
+Purchase a domain from any provider (GoDaddy, Namecheap, etc.).
+
+Connect Domain to Linode (DNS)
+Add the following A records in your domain DNS:
+| Type | Host | Value              |
+| ---- | ---- | ------------------ |
+| A    | @    | `<YOUR_LINODE_IP>` |
+| A    | www  | `<YOUR_LINODE_IP>` |
+
+Wait for DNS propagation (usually a few minutes to a few hours).
+
+### Nginx Config as Server-Managed File
+Certbot modifies the Nginx config directly on the server,
+so we must remove it from Git tracking.
+```
+git rm --cached nginx/default.conf
+```
+- Removes the file from Git
+
+Add to .gitignore:
+```
+nginx/default.conf
+```
+
+#### Commit and Push
+```
+git add .
+git commit -m "Make nginx config server-managed"
+git push origin main
+```
+
+#### SSH into Linode server
+- Create `nginx/default.conf` file
+- Add domain to this file:
+```
+server_name example.com www.example.com;
+```
+Restart backend:
+```
+docker compose restart nginx
+```
+#### Update Django ALLOWED_HOSTS
+Add your domain into `.env.docker`
+
+Restart backend:
+```
+docker compose restart backend
+```
+### Test Domain (HTTP only
+http://example.com
+
+## Install SSL (Let’s Encrypt)
+⚠️ Run on Linode host, not inside Docker.
+
+```
+apt update
+apt install certbot python3-certbot-nginx -y
+```
+#### Get SSL certificate
+```
+certbot --nginx -d example.com -d www.example.com
+```
+- Email → yes - Generate SSL certs
+- Agree → yes - Modify Nginx config
+- Redirect HTTP → yes - Enable HTTPS
+
+#### Restart Nginx
+docker compose restart nginx
+
+#### Test HTTPS 🎉
+https://example.com
+
+Congratulations 🎉 You did it.

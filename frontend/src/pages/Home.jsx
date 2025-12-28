@@ -6,11 +6,14 @@ import Products from "./Products";
 
 export const Home = () => {
   const { dispatch } = useCart();
+  const { auth } = useAuth();
+  const accessToken = auth?.accessToken;
 
   const { api } = useAxios();
 
   const fetchCartData = async () => {
     dispatch({ type: "START_LOADING" });
+    if (!accessToken) return;
     try {
       const response = await api.get("/cart/");
       dispatch({
