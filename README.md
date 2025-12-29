@@ -78,7 +78,7 @@ SECRET_KEY=<YOUR-SECRET-KEY>
 
 # Database Settings
 DB_NAME=<DATABASE-NAME>
-DB_USER=<POSTGRES-USERNAME> # Default 'postgres'
+DB_USER=<POSTGRES-USERNAME>
 DB_PASSWORD=<YOUR-PASSWORD>
 DB_HOST=localhost
 DB_PORT=5432
@@ -474,11 +474,54 @@ From local project, create file:
 ```sh
 nginx/default.conf
 ```
+```
+server {
+    listen 80;
 
+    # Frontend (React)
+    location / {
+        proxy_pass http://frontend:80;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
+    # Backend (Django)
+    location /api/ {
+        proxy_pass http://backend:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
+    # Django admin & static
+    location /admin/ {
+        proxy_pass http://backend:8000;
+    }
+
+    location /static/ {
+        proxy_pass http://backend:8000;
+    }
+
+    location /media/ {
+        proxy_pass http://backend:8000;
+    }
+}
+```
 ### Docker Compose Changes
 - Add nginx service
 - Remove ports from backend & frontend
 - Update frontend API URL: ``` VITE_SERVER_BASE_URL="/api/v1" ```
+
+```
+nginx:
+  image: nginx:alpine
+  ports:
+    - "80:80"
+  volumes:
+    - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
+  depends_on:
+    - frontend
+    - backend
+```
 
 Push changes:
 ```sh
@@ -522,9 +565,7 @@ Gunicorn will be installed automatically via dependencies.
 Replace the Django run command with Gunicorn:
 ```
 command: >
-  gunicorn clickmart_main.wsgi:application
-  --bind 0.0.0.0:8000
-  --workers 3
+  gunicorn clickmart_main.wsgi:application --bind 0.0.0.0:8000 --workers 3
 ```
 - clickmart_main.wsgi:application → Django entry point
 - --bind 0.0.0.0:8000 → Listen on all interfaces
@@ -588,7 +629,7 @@ git push origin main
 ```
 server_name example.com www.example.com;
 ```
-Restart backend:
+Restart nginx:
 ```
 docker compose restart nginx
 ```
