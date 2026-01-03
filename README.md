@@ -737,3 +737,84 @@ docker compose restart nginx
 https://example.com
 
 Congratulations 🎉 You did it.
+
+# Fixing Media Files in Production (Docker + Nginx + Django)
+
+This guide explains how to fix issues where **media files (uploaded images)** are not loading correctly in production.
+
+---
+
+### Step 1: Update Nginx Configuration (Server)
+
+1. Login to your production server.
+2. Open the Nginx config file:
+
+```bash
+nano nginx/default.conf
+```
+
+3. Add the following block inside the HTTPS server block:
+```
+location /media/ {
+    alias /media/;
+}
+```
+This tells Nginx to serve uploaded media files directly.
+4. Restart nginx container:
+```
+docker compose restart nginx
+```
+
+### Step 2: Mount Media Folder in Docker (Local Project)
+1. Open `docker-compose.yml` - in your local project
+2. Inside the nginx service, add the media volume mapping:
+```
+nginx:
+    volumes:
+      - ./backend-drf/media:/media
+```
+This allows the Nginx container to access uploaded media files created by Django.
+
+3. Commit and push the changes:
+```
+git add .
+git commit -m "Serve media files using nginx"
+git push origin main
+```
+
+### Step 3: Verify Media Files
+Try opening a media file directly in the browser:
+```
+https://your-domain.com/media/example.jpg
+```
+If the image loads, media serving is working correctly.
+
+### Step 4 (Fallback): Fix Serializer Image URL
+If media files load directly but still do not appear on the webpage, update the serializer to return a relative media path.
+
+1. Open `products/serializers.py`
+3. Update `ProductSerializer` - or whatever serializer the image is coming from.
+Refer to below code:
+```
+from rest_framework import serializers
+
+class ProductSerializer(serializers.ModelSerializer):
+    image = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Product
+        fields = "__all__"
+
+    def get_image(self, obj):
+        return obj.image.url if obj.image else None
+```
+
+This ensures the API returns: `/media/products/image.jpg` instead of Docker-internal URLs like `backend:8000`
+
+4. Commit and push again:
+```
+git add .
+git commit -m "Fix media image URL in serializer"
+git push origin main
+```
+5. Test again.
