@@ -258,7 +258,7 @@ docker compose exec backend python manage.py createsuperuser
 
 ## Create Linode Server & SSH Key
 
-👉 [Create a Linode account](https://rathank.com/linode/)
+👉 [Create a Linode account](https://rathank.appzoneit.com/linode/)
 
 ##### Create SSH Key
 On your local machine:
